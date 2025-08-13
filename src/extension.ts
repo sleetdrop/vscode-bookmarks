@@ -951,7 +951,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(vscode.l10n.t("bookmarks.export.success", saveUri.fsPath));
             }
         } catch (error) {
-            vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.export.error", error.message));
+            vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.export.error", error instanceof Error ? error.message : String(error)));
         }
     }
 
@@ -1033,7 +1033,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (!file) {
                     // Create new file entry
                     const fileUri = targetController.workspaceFolder 
-                        ? vscode.Uri.joinPath(targetController.workspaceFolder.uri, filePath)
+                        ? appendPath(targetController.workspaceFolder.uri, filePath)
                         : vscode.Uri.file(filePath);
                     targetController.addFile(fileUri);
                     file = targetController.fromUri(fileUri);
@@ -1064,7 +1064,7 @@ export async function activate(context: vscode.ExtensionContext) {
             
             vscode.window.showInformationMessage(vscode.l10n.t("bookmarks.import.success", importCount));
         } catch (error) {
-            vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.import.error", error.message));
+            vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.import.error", error instanceof Error ? error.message : String(error)));
         }
     }
 }
