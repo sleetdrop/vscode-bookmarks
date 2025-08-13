@@ -34,6 +34,26 @@ import { EditorLineNumberContextParams, updateLinesWithBookmarkContext } from ".
 import { registerGutterCommands } from "./gutter/commands";
 import { registerWalkthrough } from "./commands/walkthrough";
 
+// Interface for export/import data structures
+interface BookmarkData {
+    line: number;
+    column: number;
+    label: string;
+}
+
+interface FileBookmarkData {
+    path: string;
+    workspaceFolderPath: string | null;
+    bookmarks: BookmarkData[];
+}
+
+interface ExportData {
+    version: string;
+    exportDate: string;
+    saveBookmarksInProject: boolean;
+    bookmarks: FileBookmarkData[];
+}
+
 // this method is called when vs code is activated
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -280,6 +300,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("bookmarks.jumpToPrevious", () => jumpToNext(Directions.Backward));
     vscode.commands.registerCommand("bookmarks.list", () => list());
     vscode.commands.registerCommand("bookmarks.listFromAllFiles", () => listFromAllFiles());
+    vscode.commands.registerCommand("bookmarks.exportBookmarks", () => exportBookmarks());
+    vscode.commands.registerCommand("bookmarks.importBookmarks", () => importBookmarks());
     
     function getActiveController(document: TextDocument): void {
         // system files don't have workspace, so use the first one [0]
@@ -333,7 +355,7 @@ export async function activate(context: vscode.ExtensionContext) {
         // `saveBookmarksInProject` TRUE
         // single or multi-root, will load from each `workspaceFolder`
         controllers = await Promise.all(
-            vscode.workspace.workspaceFolders!.map(async workspaceFolder => {
+            (vscode.workspace.workspaceFolders || []).map(async workspaceFolder => {
                 const ctrl = await loadBookmarks(workspaceFolder);
                 return ctrl;
             })
@@ -873,5 +895,176 @@ export async function activate(context: vscode.ExtensionContext) {
         saveWorkspaceState();
         updateDecorations();
         updateLinesWithBookmarkContext(activeController.activeFile);
+    }
+
+    async function exportBookmarks() {
+        try {
+            // Get the save configuration
+            const saveBookmarksInProject = vscode.workspace.getConfiguration("bookmarks").get("saveBookmarksInProject", false);
+            
+            // Prepare data for export
+            const exportData: ExportData = {
+                version: "1.0.0",
+                exportDate: new Date().toISOString(),
+                saveBookmarksInProject: saveBookmarksInProject,
+                bookmarks: []
+            };
+
+            // Export from appropriate controllers based on configuration
+            const controllersToExport = saveBookmarksInProject ? controllers : [activeController];
+            
+            for (const controller of controllersToExport) {
+                if (controller && controller.files) {
+                    for (const file of controller.files) {
+                        if (file.bookmarks && file.bookmarks.length > 0) {
+                            const fileData = {
+                                path: file.path,
+                                workspaceFolderPath: controller.workspaceFolder?.uri?.path || null,
+                                bookmarks: file.bookmarks.map(bookmark => ({
+                                    line: bookmark.line,
+                                    column: bookmark.column,
+                                    label: bookmark.label || ""
+                                }))
+                            };
+                            exportData.bookmarks.push(fileData);
+                        }
+                    }
+                }
+            }
+
+            if (exportData.bookmarks.length === 0) {
+                vscode.window.showInformationMessage(vscode.l10n.t("bookmarks.export.noBookmarks"));
+                return;
+            }
+
+            // Show save dialog
+            const saveUri = await vscode.window.showSaveDialog({
+                filters: {
+                    'JSON Files': ['json']
+                },
+                defaultUri: vscode.Uri.file('bookmarks.json')
+            });
+
+            if (saveUri) {
+                const jsonContent = JSON.stringify(exportData, null, 2);
+                await vscode.workspace.fs.writeFile(saveUri, Buffer.from(jsonContent, 'utf8'));
+                vscode.window.showInformationMessage(vscode.l10n.t("bookmarks.export.success", saveUri.fsPath));
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.export.error", error instanceof Error ? error.message : String(error)));
+        }
+    }
+
+    async function importBookmarks() {
+        try {
+            // Show open dialog
+            const fileUris = await vscode.window.showOpenDialog({
+                filters: {
+                    'JSON Files': ['json']
+                },
+                canSelectMany: false
+            });
+
+            if (!fileUris || fileUris.length === 0) {
+                return;
+            }
+
+            const fileUri = fileUris[0];
+            const fileContent = await vscode.workspace.fs.readFile(fileUri);
+            const jsonContent = Buffer.from(fileContent).toString('utf8');
+            
+            let importData;
+            try {
+                importData = JSON.parse(jsonContent);
+            } catch (parseError) {
+                vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.import.invalidJson"));
+                return;
+            }
+
+            // Validate the import data structure
+            if (!importData.version || !importData.bookmarks || !Array.isArray(importData.bookmarks)) {
+                vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.import.invalidFormat"));
+                return;
+            }
+
+            // Ask user for confirmation
+            const action = await vscode.window.showInformationMessage(
+                vscode.l10n.t("bookmarks.import.confirmation", importData.bookmarks.length),
+                vscode.l10n.t("bookmarks.import.button.import"),
+                vscode.l10n.t("bookmarks.import.button.cancel")
+            );
+
+            if (action !== vscode.l10n.t("bookmarks.import.button.import")) {
+                return;
+            }
+
+            // Get current configuration
+            const saveBookmarksInProject = vscode.workspace.getConfiguration("bookmarks").get("saveBookmarksInProject", false);
+            
+            // Import bookmarks
+            let importCount = 0;
+            
+            for (const fileData of importData.bookmarks) {
+                if (!fileData.path || !fileData.bookmarks || !Array.isArray(fileData.bookmarks)) {
+                    continue;
+                }
+
+                // Determine which controller to use
+                let targetController = activeController;
+                
+                if (saveBookmarksInProject && controllers.length > 1 && fileData.workspaceFolderPath) {
+                    // Find matching controller by workspace folder path
+                    const matchingController = controllers.find(ctrl => 
+                        ctrl.workspaceFolder?.uri?.path === fileData.workspaceFolderPath
+                    );
+                    if (matchingController) {
+                        targetController = matchingController;
+                    }
+                }
+
+                if (!targetController) {
+                    continue;
+                }
+
+                // Add or update file in controller
+                const filePath = fileData.path;
+                let file = targetController.files.find(f => f.path === filePath);
+                
+                if (!file) {
+                    // Create new file entry
+                    const fileUri = targetController.workspaceFolder 
+                        ? appendPath(targetController.workspaceFolder.uri, filePath)
+                        : vscode.Uri.file(filePath);
+                    targetController.addFile(fileUri);
+                    file = targetController.fromUri(fileUri);
+                }
+
+                if (file) {
+                    // Clear existing bookmarks and add imported ones
+                    file.bookmarks = [];
+                    for (const bookmark of fileData.bookmarks) {
+                        if (typeof bookmark.line === 'number' && typeof bookmark.column === 'number') {
+                            file.bookmarks.push({
+                                line: bookmark.line,
+                                column: bookmark.column,
+                                label: bookmark.label || ""
+                            });
+                        }
+                    }
+                    // Sort bookmarks by line number
+                    file.bookmarks.sort((a, b) => a.line - b.line);
+                    importCount++;
+                }
+            }
+
+            // Save and update
+            saveWorkspaceState();
+            updateDecorations();
+            bookmarkProvider.refresh();
+            
+            vscode.window.showInformationMessage(vscode.l10n.t("bookmarks.import.success", importCount));
+        } catch (error) {
+            vscode.window.showErrorMessage(vscode.l10n.t("bookmarks.import.error", error instanceof Error ? error.message : String(error)));
+        }
     }
 }

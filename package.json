@@ -230,6 +230,16 @@
             {
                 "command": "_bookmarks.openSideBar",
                 "title": "%bookmarks.commands.openSideBar.title%"
+            },
+            {
+                "command": "bookmarks.exportBookmarks",
+                "title": "%bookmarks.commands.exportBookmarks.title%",
+                "category": "%bookmarks.commands.category.bookmarks%"
+            },
+            {
+                "command": "bookmarks.importBookmarks",
+                "title": "%bookmarks.commands.importBookmarks.title%",
+                "category": "%bookmarks.commands.category.bookmarks%"
             }
         ],
         "menus": {
@@ -363,6 +373,16 @@
                     "command": "bookmarks.openSettings",
                     "when": "view == bookmarksExplorer",
                     "group": "3_bookmarks"
+                },
+                {
+                    "command": "bookmarks.exportBookmarks",
+                    "when": "view == bookmarksExplorer",
+                    "group": "4_bookmarks"
+                },
+                {
+                    "command": "bookmarks.importBookmarks",
+                    "when": "view == bookmarksExplorer",
+                    "group": "4_bookmarks"
                 }
             ],
             "view/item/context": [

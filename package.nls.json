@@ -39,6 +39,8 @@
     "bookmarks.commands.openFolderWelcome.title": "Open Folder",
     "bookmarks.commands.supportBookmarks.title": "Support Bookmarks",
     "bookmarks.commands.openSideBar.title": "Open Side Bar",
+    "bookmarks.commands.exportBookmarks.title": "Export Bookmarks",
+    "bookmarks.commands.importBookmarks.title": "Import Bookmarks",
     "bookmarks.configuration.title": "Bookmarks",
     "bookmarks.configuration.saveBookmarksInProject.description": "Allow bookmarks to be saved (and restored) locally in the opened Project/Folder instead of VS Code",
     "bookmarks.configuration.gutterIconPath.description": "Path to another image to be presented as Bookmark",
@@ -93,5 +95,16 @@
     "bookmarks.walkthroughs.workingWithRemotes.title": "Working with Remotes",
     "bookmarks.walkthroughs.workingWithRemotes.description": "The extension support [Remote Development](https://code.visualstudio.com/docs/remote/remote-overview) scenarios. Even installed locally, you can use Bookmarks in WSL, Containers, SSH and Codespaces.",
     "bookmarks.walkthroughs.customizingAppearance.title": "Customizing Appearance",
-    "bookmarks.walkthroughs.customizingAppearance.description": "Customize how Bookmarks are presented, its icon, line and overview ruler\n[Open Settings - Gutter Icon](command:workbench.action.openSettings?%5B%22bookmarks.gutterIcon%22%5D)\n[Open Settings - Line](command:workbench.action.openSettingsJson?%5B%22workbench.colorCustomizations%22%5D)"
+    "bookmarks.walkthroughs.customizingAppearance.description": "Customize how Bookmarks are presented, its icon, line and overview ruler\n[Open Settings - Gutter Icon](command:workbench.action.openSettings?%5B%22bookmarks.gutterIcon%22%5D)\n[Open Settings - Line](command:workbench.action.openSettingsJson?%5B%22workbench.colorCustomizations%22%5D)",
+    "bookmarks.export.noBookmarks": "No bookmarks to export",
+    "bookmarks.export.success": "Bookmarks exported successfully to {0}",
+    "bookmarks.export.error": "Error exporting bookmarks: {0}",
+    "bookmarks.import.invalidJson": "Invalid JSON file format",
+    "bookmarks.import.invalidFormat": "Invalid bookmarks file format",
+    "bookmarks.import.confirmation": "This will import {0} files with bookmarks. Current bookmarks will be replaced. Continue?",
+    "bookmarks.import.button.import": "Import",
+    "bookmarks.import.button.cancel": "Cancel",
+    "bookmarks.import.success": "Successfully imported bookmarks from {0} files",
+    "bookmarks.import.error": "Error importing bookmarks: {0}"
+}
 }
